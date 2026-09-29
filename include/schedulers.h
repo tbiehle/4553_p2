@@ -6,5 +6,4 @@ extern scheduler AlwaysZero;
 extern scheduler ChangeOnSIGTSTP;
 extern scheduler ChooseHighestColor;
 extern scheduler ChooseLowestColor;
-extern scheduler RoundRobin;
 #endif
