@@ -6,16 +6,21 @@
 #include "rr.h"
 #include <sys/mman.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MEGABYTE (1024 * 1024)
 
 static tid_t next_tid = 1;
 
+static thread head = NULL;
+static thread end = NULL;
+
 static void lwp_wrap(lwpfun fun, void *arg) {
   lwp_exit(fun(arg));
 }
 
-struct scheduler *s = &rr_publish;
+//struct scheduler *s = &rr_publish;
+scheduler s;
 
 tid_t lwp_create(lwpfun fun, void *arg) {
   // use sysconf() to get page size
@@ -49,8 +54,7 @@ tid_t lwp_create(lwpfun fun, void *arg) {
   if (stack == MAP_FAILED) return NO_THREAD;
   
   
-  // allocate memory for the new thread 
-  thread created = malloc(sizeof(thread));
+  thread created = malloc(sizeof(*created));
 
   // malloc fail -> unmap requested memory -> return NO_THREAD always an invalid thread id (from lwp.h)
   if (created == NULL) {
@@ -58,8 +62,6 @@ tid_t lwp_create(lwpfun fun, void *arg) {
     return NO_THREAD;
   }
 
-  memset(created, 0, sizeof(thread)); // init all thread struct vals to 0
-  
   // set thread struct vals
   created->tid = next_tid++;
   created->stack = stack;
@@ -96,23 +98,49 @@ tid_t lwp_create(lwpfun fun, void *arg) {
   created->state.fxsave = FPU_INIT;
 
   RoundRobin->admit(created);
+  if (head == NULL){
+    head = end = created;
+  }
+
+  head->lib_one = created;
+  end->lib_two = created;
+  created->lib_one = end;
+  created->lib_two = head;
+  end = new;
   return created->tid;
 }
 
-void lwp_start() {
 
-}
+thread tid2thread(tid_t threadId){
+  thread t = head; // where to start looking for the thread
+  thread s = head;
+  // while the tid is not equal keep iterating through the list
+  while (t->tid != threadId){
+    t = t->lib_two; // move to next thread
 
-thread tid2thread(tid_t tid) {
-  
-}
+    if (t == s) return NO_THREAD;
 
-void lwp_yield() {
-  thread next = RoundRobin->next();
-
-  if (next == NULL) {
-    exit(0); // TODO: Replace with status of current thread
   }
 
+  return t;
+}
 
+
+
+// TODO: Implement
+tid_t lwp_gettid(){
+
+}
+
+void lwp_set_scheduler(scheduler sched){
+  thread curr = s->next();
+  while (curr != NULL) {
+    sched->admit(curr);
+    curr = s->next();
+    if (curr == NULL) break;
+  }
+}
+
+scheduler lwp_get_scheduler() {
+  return s;
 }
