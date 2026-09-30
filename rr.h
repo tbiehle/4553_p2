@@ -5,5 +5,6 @@
 
 extern scheduler RoundRobin;
 extern struct scheduler rr_publish;
+extern thread curr_thread;
 
 #endif

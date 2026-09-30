@@ -98,3 +98,21 @@ tid_t lwp_create(lwpfun fun, void *arg) {
   RoundRobin->admit(created);
   return created->tid;
 }
+
+void lwp_start() {
+
+}
+
+thread tid2thread(tid_t tid) {
+  
+}
+
+void lwp_yield() {
+  thread next = RoundRobin->next();
+
+  if (next == NULL) {
+    exit(0); // TODO: Replace with status of current thread
+  }
+
+
+}
