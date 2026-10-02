@@ -15,12 +15,55 @@ static tid_t next_tid = 1;
 static thread head = NULL;
 static thread end = NULL;
 
+static thread current = NULL;
+
 static void lwp_wrap(lwpfun fun, void *arg) {
   lwp_exit(fun(arg));
 }
 
-//struct scheduler *s = &rr_publish;
-scheduler s;
+scheduler s = &rr_publish;
+
+void lwp_start(void) {
+  if (current != NULL) return; //  calling thread is already an LWP.
+
+  thread original = malloc(sizeof(struct threadinfo_st));
+
+  if (original == NULL) exit(EXIT_FAILURE);
+  
+  // set struct fields for parent thread
+  original->tid = next_tid++;
+  original->status = LWP_LIVE;
+
+  // no need to allocate new stack
+  original->stack = NULL; 
+  original->stacksize = 0;
+
+  // 0 all registers rid, rax etc.
+  original->state = (rfile){0}; 
+  original->state.fxsave = FPU_INIT;
+
+  // make sched thread ptrs null
+  original->sched_one = NULL; 
+  original->sched_two = NULL;
+
+  // no exit function for parent thread
+  original->exited = NULL; 
+  // The first yield saves the actual registers into original->state.
+
+
+  // I'm not handling the case where head == NULL
+  // not sure if we need to because that means that start() was called before create()
+  original->lib_one = end;
+  original->lib_two = head;
+  end->lib_two = original;
+  head->lib_one = original;
+  end = original;
+  
+
+  current = original;
+  s->admit(original);
+  lwp_yield();
+}
 
 tid_t lwp_create(lwpfun fun, void *arg) {
   // use sysconf() to get page size
@@ -97,7 +140,7 @@ tid_t lwp_create(lwpfun fun, void *arg) {
   created->state.rsp = (unsigned long)frame;
   created->state.fxsave = FPU_INIT;
 
-  RoundRobin->admit(created);
+  s->admit(created);
   if (head == NULL){
     head = end = created;
   }
@@ -106,7 +149,7 @@ tid_t lwp_create(lwpfun fun, void *arg) {
   end->lib_two = created;
   created->lib_one = end;
   created->lib_two = head;
-  end = new;
+  end = created;
   return created->tid;
 }
 
@@ -127,9 +170,11 @@ thread tid2thread(tid_t threadId){
 
 
 
-// TODO: Implement
 tid_t lwp_gettid(){
+  
+  if (current == NULL) return NO_THREAD;
 
+  return current->tid;
 }
 
 void lwp_set_scheduler(scheduler sched){
@@ -143,4 +188,43 @@ void lwp_set_scheduler(scheduler sched){
 
 scheduler lwp_get_scheduler() {
   return s;
+}
+
+
+void lwp_yield(){
+  thread old = current;
+
+  thread next_thread = s->next();
+
+  if (next_thread == NULL) return exit(EXIT_FAILURE);
+
+  current = next_thread;
+
+  swap_rfiles(&old->state, &current->state);
+
+}
+
+
+
+void lwp_exit(int status){
+
+  thread caller = current;
+  caller->status = MKTERMSTAT(LWP_TERM, status);
+  s->remove(caller);
+
+  thread nextScheduled = s->next();
+  if (nextScheduled == NULL) {
+    exit(EXIT_FAILURE); // see what the correct exit status should be in spec? 
+  }
+
+  current = nextScheduled;
+  swap_rfiles(NULL, &current->state); // NULL for first arg since that is "old" thread
+
+  
+}
+
+tid_t lwp_wait(int *status){
+
+  
+
 }
