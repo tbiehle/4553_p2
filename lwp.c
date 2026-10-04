@@ -17,6 +17,10 @@ static thread end = NULL;
 
 static thread current = NULL;
 
+
+static thread exited_head = NULL;
+static thread exited_end = NULL;
+
 static void lwp_wrap(lwpfun fun, void *arg) {
   lwp_exit(fun(arg));
 }
@@ -46,7 +50,7 @@ void lwp_start(void) {
   original->sched_one = NULL; 
   original->sched_two = NULL;
 
-  // no exit function for parent thread
+  // no next exited ptr for parent thread
   original->exited = NULL; 
   // The first yield saves the actual registers into original->state.
 
@@ -210,6 +214,19 @@ void lwp_exit(int status){
 
   thread caller = current;
   caller->status = MKTERMSTAT(LWP_TERM, status);
+
+  // new tail has no next exited thread
+  caller->exited = NULL;
+
+  if (exited_head == NULL){
+    // first exited thread
+    exited_head = caller;
+    exited_end = caller;
+  } else {
+    //exited thread becomes the last one
+    exited_end->exited = caller;
+    exited_end = caller;
+  }
   s->remove(caller);
 
   thread nextScheduled = s->next();
@@ -225,6 +242,49 @@ void lwp_exit(int status){
 
 tid_t lwp_wait(int *status){
 
-  
+  while (exited_head == NULL){
+    // if there is nothing to wait for return NO_THREAD
+    
+    if (current == NULL || s->qlen() <= 1) return NO_THREAD;
 
+    // yield to another thread
+    lwp_yield();
+  }
+
+  // first thread to be reaped
+  thread done = exited_head;
+
+  // update list of threads to be reaped
+  exited_head = done->exited; 
+
+
+  // queue of threads to be reaped is empty so update head and end
+  if (exited_head == NULL) exited_end = NULL;
+
+  tid_t tid = done->tid;
+  if (status != NULL) *status = done->status;
+
+  // if the thread being reaped was the only thread
+  if (done->lib_two == done){ 
+    head = end = NULL;
+
+  } else {
+    // update thread connections
+    thread prev = done->lib_one;
+    thread next = done->lib_two;
+
+    prev->lib_two = done->lib_two; 
+
+    next->lib_one = done->lib_one; 
+
+    // update head and end if done is either one
+    if (head == done) head = done->lib_two;
+    if (end == done) end = done->lib_one;
+  }
+
+
+  // unmap the thread's stack
+  if (done->stack != NULL) munmap(done->stack, done->stacksize);
+  free(done); // free the allocated thread
+  return tid;
 }
