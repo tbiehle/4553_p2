@@ -24,18 +24,12 @@ include:
 
 Commands ran to test:
 
-In project root
 
-LD_LIBRARY_PATH=./lib64/
-
+In project root: 
+cd submission
+make all
+LD_LIBRARY_PATH=.
 export LD_LIBRARY_PATH
-
-
-make -f Makefile_FALL2026 all
 ./nums
 ./snakes
 ./hungry
-
-
-To package it up for submission use:
-make -f Makefile_FALL2026 submission
