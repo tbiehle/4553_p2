@@ -283,7 +283,7 @@ tid_t lwp_wait(int *status){
   }
 
 
-  // unmap the thread's stack
+  // unmap the thread stack
   if (done->stack != NULL) munmap(done->stack, done->stacksize);
   free(done); // free the allocated thread
   return tid;
