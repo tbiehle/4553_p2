@@ -1,0 +1,28 @@
+Build and test on x86-64 Linux with GCC, make, and ncurses development files.
+All required source files, headers, assembly, and the supplied snake library
+are in this folder. Makefile_FALL2026 is the original reference template;
+use Makefile for the build adapted to the supplied library files.
+
+Run from this folder:
+
+    make all
+    LD_LIBRARY_PATH=.
+    export LD_LIBRARY_PATH
+    ./nums
+    ./snakes
+    ./hungry
+
+The demos link against your static liblwp.a. LD_LIBRARY_PATH lets the snake
+demos locate the supplied libsnakes.so. Use an interactive terminal for snakes.
+
+To rebuild everything:
+
+    make allclean
+    make all
+
+To package this folder's build inputs:
+
+    make submission
+
+This creates project2_submission.tar.gz containing the sources, headers,
+assembly, Makefile, README, and supplied snake library needed to rebuild.
