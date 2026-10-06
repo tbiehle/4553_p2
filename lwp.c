@@ -46,9 +46,6 @@ void lwp_start(void) {
   original->state = (rfile){0}; 
   original->state.fxsave = FPU_INIT;
 
-  // make sched thread ptrs null
-  original->sched_one = NULL; 
-  original->sched_two = NULL;
 
   // no next exited ptr for parent thread
   original->exited = NULL; 
@@ -57,10 +54,15 @@ void lwp_start(void) {
 
   // I'm not handling the case where head == NULL
   // not sure if we need to because that means that start() was called before create()
-  original->lib_one = end;
-  original->lib_two = head;
+
+  thread old_end = end;
+  
   end->lib_two = original;
   head->lib_one = original;
+
+  original->lib_one = old_end;
+  original->lib_two = head;
+  
   end = original;
   
 
@@ -149,8 +151,9 @@ tid_t lwp_create(lwpfun fun, void *arg) {
     head = end = created;
   }
 
-  head->lib_one = created;
-  end->lib_two = created;
+  head->lib_one = created; 
+  end->lib_two = created;  
+
   created->lib_one = end;
   created->lib_two = head;
   end = created;
